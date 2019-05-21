@@ -1,0 +1,58 @@
+import socket
+from queue import Queue
+import threading
+
+#Create a print lock for printing function
+print_lock = threading.Lock()
+
+#Get user defined host and port range
+target = input("Enter a remote host to scan\n(i.e. a website, such as pythonprogramming.net): ")
+start = 0
+#Do not allow scanning of port 0
+while start == 0:
+    start = int(input("Enter port to start scanning at: "))
+    if start == 0:
+        print("0 is not a valid port to scan, please try again")    
+end = int(input("Enter port to stop scanning at: ")) + 1
+print()
+#Portscan attmepts to connect to a given port, and if succesfull it will grab the returned banner
+def portscan(port):
+    #Define a socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        #connect socket to host at port
+        con = s.connect((target,port))
+        #send random data (in binary form, hence the 'b') over connection and wait for response
+        text = b'Random String To Send\r\n'
+        s.send(text)
+        results = s.recv(1000)
+        #only print to screen if other threads are not
+        with print_lock:
+            print('Port',port,'is OPEN!')
+            print('Banner Results: ')
+            #decode the binary response from host
+            print(results.decode('utf-8'))
+            print('-' * 60)
+
+        con.close()
+    except:
+        #if failed connection, do nothing
+        pass
+def threader():
+    while True:
+        worker = q.get()
+        portscan(worker)
+        q.task_done()
+
+q = Queue()
+#specify how many threads to run
+for x in range(100):
+    t = threading.Thread(target=threader)
+    t.daemon = True
+    t.start()
+#specify amount of ports
+for worker in range(start,end):
+    #put set amount of workers into the queue
+    q.put(worker)
+    
+q.join()
